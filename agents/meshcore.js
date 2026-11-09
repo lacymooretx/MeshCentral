@@ -297,6 +297,8 @@ function getCoreTranslation() {
     if (global.coretranslations != null) {
         try {
             var lang = require('util-language').current;
+            lang = lang.toLowerCase();
+            lang = lang.replace('_', '-');
             if (coretranslations[lang] == null) { lang = lang.split('-')[0]; }
             if (coretranslations[lang] == null) { lang = 'en'; }
             if (coretranslations[lang] != null) { ret = coretranslations[lang]; }
@@ -561,10 +563,10 @@ try { obj.DAIPC.listen({ path: obj.DAIPC.IPCPATH, writableAll: true, maxConnecti
 obj.DAIPC._daipc = [];
 obj.DAIPC.on('connection', function (c) {
     c._send = function (j) {
-        var data = JSON.stringify(j);
+        var data = Buffer.from(JSON.stringify(j));
         var packet = Buffer.alloc(data.length + 4);
         packet.writeUInt32LE(data.length + 4, 0);
-        Buffer.from(data).copy(packet, 4);
+        data.copy(packet, 4);
         this.write(packet);
     };
     this._daipc.push(c);
