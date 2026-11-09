@@ -2019,6 +2019,8 @@ function CreateMeshCentralServer(config, args) {
                     // Setup the Intel AMT manager
                     if (obj.args.amtmanager !== false) {
                         obj.amtManager = require('./amtmanager.js').CreateAmtManager(obj);
+                        // Aspendora patch: amt-agent-relay
+                        try { obj.amtAgentRelay = require('./amtagentrelay.js').CreateAmtAgentRelay(obj); } catch (ex) { console.log('AmtAgentRelay: failed to start: ' + ex); }
                     }
 
                     // Setup and start the legacy swarm server

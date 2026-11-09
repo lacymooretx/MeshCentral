@@ -5840,9 +5840,23 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 if (node.intelamt.tls > 0) port = 16993; // This is a direct connection, use TLS when possible
                 if ((req.query.p == 2) || (req.query.p == 4)) port += 2;
 
+                // Aspendora patch: amt-agent-relay (route Intel AMT through an online agent on the device's LAN)
+                var amtHost = node.host, amtTunnel = null;
+                const amtRoute = (parent.amtAgentRelay != null) ? parent.amtAgentRelay.getRoute(node._id) : null;
+                if ((amtRoute != null) && amtRoute.lms && ((port == 16994) || (port == 16995))) {
+                    parent.debug('webrelay', 'Intel AMT redirection is not available over LMS for ' + node.name + '.');
+                    try { ws._socket.resume(); ws.close(); } catch (ex) { }
+                    return;
+                }
+                if (amtRoute != null) {
+                    amtHost = amtRoute.addr;
+                    amtTunnel = parent.amtAgentRelay.createTunnel(amtRoute.relayid, amtRoute.addr, port, user._id, domain.id);
+                    parent.debug('webrelay', user.name + ' - Intel AMT via agent ' + amtRoute.relayname + ' to ' + amtHost + ':' + port + '.');
+                }
+
                 if (node.intelamt.tls == 0) {
                     // If this is TCP (without TLS) set a normal TCP socket
-                    ws.forwardclient = new obj.net.Socket();
+                    ws.forwardclient = (amtTunnel != null) ? amtTunnel : new obj.net.Socket(); // Aspendora patch: amt-agent-relay
                     ws.forwardclient.setEncoding('binary');
                     ws.forwardclient.xstate = 0;
                     ws.forwardclient.forwardwsocket = ws;
@@ -5855,7 +5869,8 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                     } else {
                         tlsoptions.minVersion = 'TLSv1';
                     }
-                    ws.forwardclient = obj.tls.connect(port, node.host, tlsoptions, function () {
+                    if (amtTunnel != null) { tlsoptions.socket = amtTunnel; } // Aspendora patch: amt-agent-relay
+                    ws.forwardclient = obj.tls.connect(port, amtHost, tlsoptions, function () {
                         // The TLS connection method is the same as TCP, but located a bit differently.
                         parent.debug('webrelay', user.name + ' - TLS connected to ' + node.host + ':' + port + '.');
                         ws.forwardclient.xstate = 1;
@@ -5896,12 +5911,12 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 });
 
                 // Fetch Intel AMT credentials & Setup interceptor
-                if (req.query.p == 1) { ws.interceptor = obj.interceptor.CreateHttpInterceptor({ host: node.host, port: port, user: node.intelamt.user, pass: node.intelamt.pass }); }
+                if (req.query.p == 1) { ws.interceptor = obj.interceptor.CreateHttpInterceptor({ host: ((amtRoute != null) ? node._id : node.host), port: port, user: node.intelamt.user, pass: node.intelamt.pass }); } // Aspendora patch: amt-agent-relay (digest cache keyed per device: LMS routes all use 127.0.0.1)
                 else if (req.query.p == 2) { ws.interceptor = obj.interceptor.CreateRedirInterceptor({ user: node.intelamt.user, pass: node.intelamt.pass }); }
 
                 if (node.intelamt.tls == 0) {
                     // A TCP connection to Intel AMT just connected, start forwarding.
-                    ws.forwardclient.connect(port, node.host, function () {
+                    ws.forwardclient.connect(port, amtHost, function () { // Aspendora patch: amt-agent-relay
                         parent.debug('webrelay', user.name + ' - TCP relay connected to ' + node.host + ':' + port + '.');
                         ws.forwardclient.xstate = 1;
                         ws._socket.resume();
