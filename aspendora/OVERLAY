@@ -1,4 +1,6 @@
-# Files this fork changes relative to upstream BASE_VERSION. build.sh enforces this list.
+# Files this fork changes relative to upstream BASE_REF. build.sh enforces this list.
+agents/meshcore.js
 amtagentrelay.js
 meshcentral.js
+meshuser.js
 webserver.js
