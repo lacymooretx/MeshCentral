@@ -17,6 +17,6 @@ if [ "$CHANGED" != "$LISTED" ]; then
 fi
 CTX=$(mktemp -d); trap 'rm -rf "$CTX"' EXIT
 mkdir "$CTX/overlay"; cp aspendora/Dockerfile "$CTX/"
-git archive HEAD $LISTED | tar -x -C "$CTX/overlay"
+git archive HEAD $LISTED | COPYFILE_DISABLE=1 tar -x -C "$CTX/overlay"
 echo "Building $TAG from $COMMIT on $HOST (base $BASE, overlay: $(echo $LISTED))"
-tar -C "$CTX" -cz . | ssh "$HOST" "docker build --build-arg BASE_VERSION=$BASE --build-arg GIT_COMMIT=$COMMIT -t $TAG -"
+COPYFILE_DISABLE=1 tar -C "$CTX" -cz . | ssh "$HOST" "docker build --build-arg BASE_VERSION=$BASE --build-arg GIT_COMMIT=$COMMIT -t $TAG -"
