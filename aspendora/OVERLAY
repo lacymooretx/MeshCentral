@@ -1,0 +1,4 @@
+# Files this fork changes relative to upstream BASE_VERSION. build.sh enforces this list.
+amtagentrelay.js
+meshcentral.js
+webserver.js
